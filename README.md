@@ -6,7 +6,9 @@
 
 | فید | نمایش | کاربرد |
 |---|---|---|
-| **calendar-pro.ics** | یک رویداد تمیز مثل «۱۲ مهر» + جزئیات کامل | **پیشنهادی** |
+| **calendar-pro.ics** | یک رویداد تمیز مثل «۱۲ مهر» + جزئیات کامل | **تاریخ شمسی — پیشنهادی** |
+| **iran-holidays.ics** | فقط تعطیلات رسمی ایران | **تقویم مستقل تعطیلات** |
+| **iran-events.ics** | مناسبت‌های ملی، فرهنگی و مذهبی ایران | **تقویم مستقل مناسبت‌ها** |
 | **calendar.ics** | فقط تاریخ شمسی | مینیمال |
 | **calendar-full.ics** | تاریخ شمسی + نام روز به‌صورت دو رویداد | مشابه نمونه اینستاگرام |
 
@@ -14,6 +16,18 @@
 
 ```text
 https://raw.githubusercontent.com/nemoresideo/persian-apple-calendar/main/calendar-pro.ics
+```
+
+### تعطیلات رسمی ایران
+
+```text
+https://raw.githubusercontent.com/nemoresideo/persian-apple-calendar/main/iran-holidays.ics
+```
+
+### مناسبت‌های ایران
+
+```text
+https://raw.githubusercontent.com/nemoresideo/persian-apple-calendar/main/iran-events.ics
 ```
 
 ### نسخه کامل
@@ -86,3 +100,13 @@ python generate_calendar.py
 ## Repository
 
 https://github.com/nemoresideo/persian-apple-calendar
+
+
+## معماری داده مناسبت‌ها
+
+فایل `sync_iran_calendar.py` داده سال‌های ۱۴۰۵ تا ۱۴۱۰ را همگام می‌کند و خروجی نرمال‌شده را در `data/iran-calendar.json` نگه می‌دارد.
+
+برای جلوگیری از شلوغی و داده‌های نامرتبط:
+- مناسبت‌های میلادی/جهانی وارد Feed ایران نمی‌شوند.
+- رویدادهای موردی و تعطیلی‌های اضطراری در Feed «تعطیلات رسمی» وارد نمی‌شوند.
+- تعطیلات فقط وقتی وارد Feed قرمز می‌شوند که خود مناسبت شمسی یا قمری به‌عنوان «تعطیل» مشخص شده باشد.
