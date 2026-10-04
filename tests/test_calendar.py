@@ -20,7 +20,7 @@ class PersianCalendarTests(unittest.TestCase):
         self.assertEqual(cal.jalali_year_start_gregorian(1405), date(2026, 3, 21))
 
     def test_ics_escaping(self):
-        self.assertEqual(cal.escape_ics("الف،ب"), "الف\\،ب")
+        self.assertEqual(cal.escape_ics("الف,b"), "الف\\,b")
 
 
 if __name__ == "__main__":
