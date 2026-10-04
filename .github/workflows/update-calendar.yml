@@ -10,7 +10,6 @@ on:
       - "sync_iran_calendar.py"
       - "requirements.txt"
       - "config.json"
-      - "data/**"
       - "tests/**"
       - ".github/workflows/update-calendar.yml"
   schedule:
@@ -81,4 +80,5 @@ jobs:
             exit 0
           fi
           git commit -m "chore: sync Iran calendar data and refresh feeds"
+          git pull --rebase origin main
           git push
