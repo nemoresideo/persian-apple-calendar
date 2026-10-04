@@ -26,6 +26,11 @@ PERSIAN_MONTHS = [
     "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
 ]
 
+GREGORIAN_MONTHS_FA = [
+    "", "ژانویه", "فوریه", "مارس", "آوریل", "مه", "ژوئن",
+    "ژوئیه", "اوت", "سپتامبر", "اکتبر", "نوامبر", "دسامبر",
+]
+
 # Python weekday(): Monday=0 ... Sunday=6
 PERSIAN_WEEKDAYS = {
     0: "دوشنبه",
@@ -145,7 +150,6 @@ def make_event(
     summary: str,
     uid_prefix: str,
     description: str,
-    repository_url: str,
 ) -> list[str]:
     next_day = gdate + timedelta(days=1)
 
@@ -162,7 +166,6 @@ def make_event(
         "TRANSP:TRANSPARENT",
         "STATUS:CONFIRMED",
         "SEQUENCE:0",
-        f"URL:{repository_url}",
         "END:VEVENT",
     ]
 
@@ -205,7 +208,6 @@ def build_feed(
     owner_tag: str,
     calendar_color: str,
     source_url: str,
-    repository_url: str,
     start_jy: int,
     end_jy: int,
 ) -> list[str]:
@@ -228,6 +230,10 @@ def build_feed(
         month = PERSIAN_MONTHS[jm]
         short_date = f"{fa_num(jd)} {month}"
         full_date = f"{weekday}، {fa_num(jd)} {month} {fa_num(jy)}"
+        gregorian_fa = (
+            f"{fa_num(current.day)} {GREGORIAN_MONTHS_FA[current.month]} "
+            f"{fa_num(current.year)}"
+        )
 
         if mode == "clean":
             lines.extend(
@@ -241,7 +247,6 @@ def build_feed(
                     summary=short_date,
                     uid_prefix="date",
                     description=full_date,
-                    repository_url=repository_url,
                 )
             )
 
@@ -258,10 +263,8 @@ def build_feed(
                     uid_prefix="pro",
                     description=(
                         f"{full_date}\n"
-                        f"تاریخ میلادی: {current:%Y-%m-%d}\n"
-                        "تقویم خورشیدی ایران"
+                        f"میلادی: {gregorian_fa}"
                     ),
-                    repository_url=repository_url,
                 )
             )
 
@@ -277,7 +280,6 @@ def build_feed(
                     summary=short_date,
                     uid_prefix="date",
                     description=full_date,
-                    repository_url=repository_url,
                 )
             )
             lines.extend(
@@ -291,7 +293,6 @@ def build_feed(
                     summary=weekday,
                     uid_prefix="weekday",
                     description=full_date,
-                    repository_url=repository_url,
                 )
             )
         else:
@@ -330,7 +331,6 @@ def main() -> None:
     owner_tag = str(config["owner_tag"]).strip()
     calendar_name = str(config["calendar_name"]).strip()
     calendar_color = str(config["calendar_color"]).strip()
-    repository_url = str(config["repository_url"]).strip()
     raw_base_url = str(config["raw_base_url"]).rstrip("/")
 
     validate_known_dates()
@@ -364,7 +364,6 @@ def main() -> None:
             owner_tag=owner_tag,
             calendar_color=calendar_color,
             source_url=f"{raw_base_url}/{filename}",
-            repository_url=repository_url,
             start_jy=start_jy,
             end_jy=end_jy,
         )
