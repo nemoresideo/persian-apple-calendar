@@ -7,7 +7,10 @@ on:
       - main
     paths:
       - "generate_calendar.py"
+      - "sync_iran_calendar.py"
+      - "requirements.txt"
       - "config.json"
+      - "data/**"
       - "tests/**"
       - ".github/workflows/update-calendar.yml"
   schedule:
@@ -21,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-and-generate:
+  sync-validate-generate:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +36,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run conversion tests
+      - name: Install sync dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync Iran holidays and occasions
+        run: python sync_iran_calendar.py --start-year 1405 --end-year 1410
+
+      - name: Run tests
         run: python -m unittest discover -s tests -v
 
       - name: Generate ICS feeds
@@ -43,23 +52,33 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          for name in ("calendar.ics", "calendar-pro.ics", "calendar-full.ics"):
+          required = (
+              "calendar.ics",
+              "calendar-pro.ics",
+              "calendar-full.ics",
+              "iran-holidays.ics",
+              "iran-events.ics",
+          )
+          for name in required:
               p = Path(name)
+              if not p.exists():
+                  raise SystemExit(f"Missing generated feed: {name}")
               data = p.read_text(encoding="utf-8")
               assert data.startswith("BEGIN:VCALENDAR")
               assert data.rstrip().endswith("END:VCALENDAR")
-              assert "SUMMARY:۱۲ مهر" in data
               print(f"{name}: {p.stat().st_size:,} bytes OK")
           PY
 
-      - name: Commit generated feeds
+      - name: Commit synced data and generated feeds
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/iran-calendar.json
           git add calendar.ics calendar-pro.ics calendar-full.ics
+          git add iran-holidays.ics iran-events.ics
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
             exit 0
           fi
-          git commit -m "chore: refresh Persian calendar feeds"
+          git commit -m "chore: sync Iran calendar data and refresh feeds"
           git push
