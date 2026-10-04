@@ -5,9 +5,11 @@
 Persian (Jalali) calendar feeds for Apple Calendar.
 
 Feeds:
-  calendar.ics       Recommended: one clean Persian-date event per day.
-  calendar-pro.ics   Professional: compact title + rich metadata/description.
-  calendar-full.ics  Full/legacy: Persian date + Persian weekday as two events.
+  calendar.ics        One clean Persian-date event per day.
+  calendar-pro.ics    Professional Persian-date feed.
+  calendar-full.ics   Full/legacy date + weekday feed.
+  iran-holidays.ics   Official Iran holidays as a separate feed.
+  iran-events.ics     Iranian national/religious occasions as a separate feed.
 
 No third-party package is required.
 """
@@ -16,10 +18,12 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+import hashlib
 import json
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config.json"
+IRAN_DATA_PATH = ROOT / "data" / "iran-calendar.json"
 
 PERSIAN_MONTHS = [
     "", "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
@@ -304,6 +308,77 @@ def build_feed(
     return lines
 
 
+def jalali_to_gregorian_date(jy: int, jm: int, jd: int) -> date:
+    start = jalali_year_start_gregorian(jy)
+    if jm <= 6:
+        offset = (jm - 1) * 31 + (jd - 1)
+    else:
+        offset = 186 + (jm - 7) * 30 + (jd - 1)
+    return start + timedelta(days=offset)
+
+
+def build_iran_feed(
+    *,
+    items: list[dict],
+    holidays_only: bool,
+    name: str,
+    description: str,
+    owner_tag: str,
+    calendar_color: str,
+    source_url: str,
+) -> list[str]:
+    lines = calendar_header(
+        name=name,
+        description=description,
+        owner_tag=owner_tag,
+        calendar_color=calendar_color,
+        source_url=source_url,
+    )
+    dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    selected = []
+    for item in items:
+        if item.get("calendar") not in {"شمسی", "قمری"}:
+            continue
+        if holidays_only and item.get("status") != "تعطیل":
+            continue
+        selected.append(item)
+
+    for index, item in enumerate(selected):
+        jy = int(item["year"])
+        jm = int(item["month"])
+        jd = int(item["day"])
+        gdate = jalali_to_gregorian_date(jy, jm, jd)
+        weekday = PERSIAN_WEEKDAYS[gdate.weekday()]
+        month = PERSIAN_MONTHS[jm]
+        holiday_label = "تعطیل رسمی" if item.get("status") == "تعطیل" else "مناسبت"
+        description_text = (
+            f"{weekday}، {fa_num(jd)} {month} {fa_num(jy)}\n"
+            f"{holiday_label} • {item.get('calendar', '')}"
+        )
+        uid_prefix = "iran-holiday" if holidays_only else "iran-event"
+        # Include a deterministic suffix so multiple occasions on one day stay unique.
+        digest_source = f"{item.get('calendar', '')}|{item.get('title', '')}".encode("utf-8")
+        safe_suffix = hashlib.sha1(digest_source).hexdigest()[:10]
+
+        lines.extend(
+            make_event(
+                gdate=gdate,
+                jy=jy,
+                jm=jm,
+                jd=jd,
+                owner_tag=owner_tag,
+                dtstamp=dtstamp,
+                summary=str(item["title"]),
+                uid_prefix=f"{uid_prefix}-{safe_suffix}",
+                description=description_text,
+            )
+        )
+
+    lines.append("END:VCALENDAR")
+    return lines
+
+
 def write_ics(path: Path, lines: list[str]) -> None:
     """Write RFC 5545 compatible CRLF line endings."""
     path.write_bytes(("\r\n".join(lines) + "\r\n").encode("utf-8"))
@@ -332,6 +407,8 @@ def main() -> None:
     calendar_name = str(config["calendar_name"]).strip()
     calendar_color = str(config["calendar_color"]).strip()
     raw_base_url = str(config["raw_base_url"]).rstrip("/")
+    holidays_color = str(config.get("holidays_color", "#FF3B30")).strip()
+    events_color = str(config.get("events_color", "#007AFF")).strip()
 
     validate_known_dates()
 
@@ -369,9 +446,39 @@ def main() -> None:
         )
         write_ics(ROOT / filename, lines)
 
+    generated = [item[0] for item in feeds]
+
+    if IRAN_DATA_PATH.exists():
+        iran_data = json.loads(IRAN_DATA_PATH.read_text(encoding="utf-8"))
+        iran_items = iran_data.get("events", [])
+
+        holiday_lines = build_iran_feed(
+            items=iran_items,
+            holidays_only=True,
+            name="تعطیلات رسمی ایران",
+            description="تعطیلات رسمی ایران — تقویم مستقل برای Apple Calendar",
+            owner_tag=owner_tag,
+            calendar_color=holidays_color,
+            source_url=f"{raw_base_url}/iran-holidays.ics",
+        )
+        write_ics(ROOT / "iran-holidays.ics", holiday_lines)
+        generated.append("iran-holidays.ics")
+
+        event_lines = build_iran_feed(
+            items=iran_items,
+            holidays_only=False,
+            name="مناسبت‌های ایران",
+            description="مناسبت‌های ملی، فرهنگی و مذهبی ایران",
+            owner_tag=owner_tag,
+            calendar_color=events_color,
+            source_url=f"{raw_base_url}/iran-events.ics",
+        )
+        write_ics(ROOT / "iran-events.ics", event_lines)
+        generated.append("iran-events.ics")
+
     print(
-        f"Generated {len(feeds)} feeds for Jalali years "
-        f"{start_jy}–{end_jy}: " + ", ".join(item[0] for item in feeds)
+        f"Generated feeds for Jalali years {start_jy}–{end_jy}: "
+        + ", ".join(generated)
     )
 
 
