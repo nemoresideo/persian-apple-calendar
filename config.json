@@ -2,5 +2,8 @@
   "start_jalali_year": 1405,
   "end_jalali_year": 1410,
   "owner_tag": "nemoresideo.github.io",
-  "calendar_name": "تقویم فارسی"
+  "calendar_name": "تقویم فارسی",
+  "calendar_color": "#34C759",
+  "repository_url": "https://github.com/nemoresideo/persian-apple-calendar",
+  "raw_base_url": "https://raw.githubusercontent.com/nemoresideo/persian-apple-calendar/main"
 }
